@@ -27,44 +27,7 @@
 #include "esp_log.h"
 #include "esp_event_loop.h"
 #include "nvs_flash.h"
-
-/*Set the SSID and Password via "make menuconfig"*/
-#define DEFAULT_SSID CONFIG_WIFI_SSID
-#define DEFAULT_PWD CONFIG_WIFI_PASSWORD
-
-#if CONFIG_WIFI_ALL_CHANNEL_SCAN
-#define DEFAULT_SCAN_METHOD WIFI_ALL_CHANNEL_SCAN
-#elif CONFIG_WIFI_FAST_SCAN
-#define DEFAULT_SCAN_METHOD WIFI_FAST_SCAN
-#else
-#define DEFAULT_SCAN_METHOD WIFI_FAST_SCAN
-#endif /*CONFIG_SCAN_METHOD*/
-
-#if CONFIG_WIFI_CONNECT_AP_BY_SIGNAL
-#define DEFAULT_SORT_METHOD WIFI_CONNECT_AP_BY_SIGNAL
-#elif CONFIG_WIFI_CONNECT_AP_BY_SECURITY
-#define DEFAULT_SORT_METHOD WIFI_CONNECT_AP_BY_SECURITY
-#else
-#define DEFAULT_SORT_METHOD WIFI_CONNECT_AP_BY_SIGNAL
-#endif /*CONFIG_SORT_METHOD*/
-
-#if CONFIG_FAST_SCAN_THRESHOLD
-#define DEFAULT_RSSI CONFIG_FAST_SCAN_MINIMUM_SIGNAL
-#if CONFIG_EXAMPLE_OPEN
-#define DEFAULT_AUTHMODE WIFI_AUTH_OPEN
-#elif CONFIG_EXAMPLE_WEP
-#define DEFAULT_AUTHMODE WIFI_AUTH_WEP
-#elif CONFIG_EXAMPLE_WPA
-#define DEFAULT_AUTHMODE WIFI_AUTH_WPA_PSK
-#elif CONFIG_EXAMPLE_WPA2
-#define DEFAULT_AUTHMODE WIFI_AUTH_WPA2_PSK
-#else
-#define DEFAULT_AUTHMODE WIFI_AUTH_OPEN
-#endif
-#else
-#define DEFAULT_RSSI -127
-#define DEFAULT_AUTHMODE WIFI_AUTH_OPEN
-#endif /*CONFIG_FAST_SCAN_THRESHOLD*/
+#include "config.h"
 
 static const char *TAG = "scan";
 
@@ -102,10 +65,10 @@ static void wifi_scan(void)
         .sta = {
             .ssid = DEFAULT_SSID,
             .password = DEFAULT_PWD,
-            .scan_method = DEFAULT_SCAN_METHOD,
-            .sort_method = DEFAULT_SORT_METHOD,
-            .threshold.rssi = DEFAULT_RSSI,
-            .threshold.authmode = DEFAULT_AUTHMODE,
+            .scan_method = WIFI_FAST_SCAN,
+            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
+            .threshold.rssi = -127,
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
         },
     };
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
