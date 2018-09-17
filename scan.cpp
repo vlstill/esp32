@@ -28,6 +28,8 @@
 #include "esp_event_loop.h"
 #include "nvs_flash.h"
 #include "config.h"
+#include <cstring>
+#include <algorithm>
 
 static const char *TAG = "scan";
 
@@ -61,22 +63,21 @@ static void wifi_scan(void)
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = DEFAULT_SSID,
-            .password = DEFAULT_PWD,
-            .scan_method = WIFI_FAST_SCAN,
-            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
-            .threshold.rssi = -127,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-        },
-    };
+    wifi_config_t wifi_config;
+    std::memset( &wifi_config, 0, sizeof( wifi_init_config_t ) );
+    std::copy( std::begin( DEFAULT_SSID ), std::end( DEFAULT_SSID ), wifi_config.sta.ssid );
+    std::copy( std::begin( DEFAULT_PWD ), std::end( DEFAULT_PWD ), wifi_config.sta.password );
+    wifi_config.sta.scan_method = WIFI_FAST_SCAN;
+    wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+    wifi_config.sta.threshold.rssi = -127;
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
-void app_main()
+extern "C" void app_main()
 {
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
