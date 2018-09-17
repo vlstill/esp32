@@ -1,3 +1,4 @@
 sdkconfig*
 build*
 _build*
+config.h
