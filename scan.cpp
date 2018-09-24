@@ -23,6 +23,10 @@
 */
 #include "esp32.hpp"
 #include "wifi.hpp"
+#include "timer.hpp"
+#include "frtos/queue.hpp"
+
+template struct frtos::Queue< int >;
 
 void esp_main()
 {

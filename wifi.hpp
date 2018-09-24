@@ -8,6 +8,7 @@
 #include "config.h"
 #include <cstring>
 #include <algorithm>
+#include <iterator>
 
 static const char *WIFI_SCAN_TAG = "wifi_scan";
 
@@ -43,12 +44,12 @@ static void wifi_scan(void)
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     wifi_config_t wifi_config;
     std::memset( &wifi_config, 0, sizeof( wifi_init_config_t ) );
-    std::copy( std::begin( DEFAULT_SSID ), std::end( DEFAULT_SSID ), wifi_config.sta.ssid );
-    std::copy( std::begin( DEFAULT_PWD ), std::end( DEFAULT_PWD ), wifi_config.sta.password );
+    std::copy( std::begin( CONFIG_SSID ), std::end( CONFIG_SSID ), wifi_config.sta.ssid );
+    std::copy( std::begin( CONFIG_PWD ), std::end( CONFIG_PWD ), wifi_config.sta.password );
     wifi_config.sta.scan_method = WIFI_FAST_SCAN;
     wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
     wifi_config.sta.threshold.rssi = -127;
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    wifi_config.sta.threshold.authmode = CONFIG_AUTH;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
