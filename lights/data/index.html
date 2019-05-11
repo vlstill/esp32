@@ -117,7 +117,7 @@
     <div id="log" class="log-short"></div>
 
     <div id="content">
-        ping: <span id="ping-id"></span>, pong: <span id="pong-id"></span>
+        ping: <span id="ping-id"></span>, pong: <span id="pong-id"></span>, <span id="status">...</span>
         <div id="brightness">
             <p><b>Brightness</b></p>
             <div class="w3-center">
@@ -192,6 +192,7 @@
         this.PING_MAX_LOST = 10;
         this.ping = 0;
         this.pong = 0;
+        this.status = document.getElementById("status");
         this.ping_elem = document.getElementById("ping-id");
         this.pong_elem = document.getElementById("pong-id");
         this.ping_elem.innerText = "?";
@@ -294,6 +295,9 @@
         case "pong":
             this.handle_pong(data["id"])
             break;
+		case "status":
+			this.handle_status(data["status"])
+			break;
         case "log":
             this.log.write(data["msg"]);
             break;
@@ -313,6 +317,10 @@
     Manager.prototype.handle_pong = function(id) {
         this.pong = Math.max(id, this.pong);
     }
+
+	Manager.prototype.handle_status = function(status) {
+		this.status.innerText = status;
+	}
 
     window.addEventListener("load", function(){
         var man = new Manager("log");

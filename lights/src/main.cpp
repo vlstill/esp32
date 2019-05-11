@@ -39,9 +39,9 @@ extern "C" void app_main() {
         else if (command == "ping") {
             int rcv = pkt->getInt( "id" );
             std::cout << "ping " << rcv << std::endl;
-            std::unique_ptr< rbjson::Object > data{ new rbjson::Object() };
-            data->set( "id", new rbjson::Number( rcv ) );
-            prot.send( "pong", data.get() );
+            rbjson::Object data;
+            data.set( "id", new rbjson::Number( rcv ) );
+            prot.send( "pong", &data );
         }
     });
 
@@ -54,6 +54,9 @@ extern "C" void app_main() {
     while( true ) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         if ( prot.is_possessed() ) {
+			rbjson::Object data;
+			data.set( "status", "test msg" );
+			prot.send( "status", &data );
         }
     }
 }
