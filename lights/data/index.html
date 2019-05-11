@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>RoFi Module Controller</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reconnecting-websocket/1.0.0/reconnecting-websocket.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.6.8/nipplejs.min.js"></script>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+
+    <style>
+        body {
+            padding: 0px;
+            margin: 0px;
+        }
+
+        #content {
+            padding: 5%;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            display: none;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked+.slider {
+            background-color: #2196F3;
+        }
+
+        input:focus+.slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked+.slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+
+        /* Rounded sliders */
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        .slidecontainer {
+            width: 100%;
+        }
+
+        .range-slider {
+            height: 50px;
+            width: 80%;
+        }
+
+        #log {
+            padding: 3px;
+            width: 100%;
+            font-size: 10px;
+            font-family: monospace;
+            background-color: black;
+            color: #62f442;
+            white-space: pre-line;
+            overflow-y: scroll;
+        }
+
+        .log-short {
+            height: 16em;
+            box-shadow: 0 20px 20px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .log-full {
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body id="body">
+    <div id="log" class="log-short"></div>
+
+    <div id="content">
+        ping: <span id="ping-id"></span>, pong: <span id="pong-id"></span>
+        <div id="brightness">
+            <p><b>Brightness</b></p>
+            <div class="w3-center">
+                <p>
+                    Brightness value:
+                    <span id="brightness-info"></span>
+                </p>
+                <input type="range" min="0" max="100" value="0" class="range-slider" id="brightness-slider">
+            </div>
+        </div>
+    </div>
+
+  <script type="text/javascript">
+    'use strict';
+
+    function Log(elementId) {
+        this.el = document.getElementById(elementId);
+        this.open = false;
+        this.isTouched = false;
+
+        this.el.addEventListener("click", this.onClick.bind(this));
+
+        this.el.addEventListener("touchstart", function() {
+            this.isTouched = true;
+        }.bind(this));
+        this.el.addEventListener("touchend", function() {
+            this.isTouched = false;
+        }.bind(this));
+
+        this.scrollToBottom();
+    }
+
+    Log.prototype.onClick = function() {
+        this.open = !this.open;
+        if(this.open) {
+            this.el.classList.replace("log-short", "log-full")
+        } else {
+            this.el.classList.replace("log-full", "log-short")
+        }
+        this.scrollToBottom();
+    }
+
+    Log.prototype.scrollToBottom = function() {
+        this.el.scrollTop = this.el.scrollHeight;
+    }
+
+    Log.prototype.clear = function() {
+        this.el.textContent = "";
+    }
+
+    Log.prototype.write = function(msg, noNewLine) {
+        if(typeof msg != "string")
+            msg = String(msg);
+        if(noNewLine !== true && !msg.endsWith("\n")) {
+            msg += "\n";
+        }
+        this.el.textContent += msg;
+        if(!this.isTouched) {
+            this.scrollToBottom();
+        }
+    }
+
+    function Manager(logElementId) {
+        this.socket = null;
+
+        this.mustArriveIdIn = 0;
+        this.mustArriveIdOut = 0;
+        this.mustArriveCommands = {};
+        this.MUST_ARRIVE_TIMER_FULL = 50;
+        this.MUST_ARRIVE_RETRIES = 15;
+        this.PING_CHECK_INTERVAL = 500;
+        this.PING_MAX_LOST = 10;
+        this.ping = 0;
+        this.pong = 0;
+        this.ping_elem = document.getElementById("ping-id");
+        this.pong_elem = document.getElementById("pong-id");
+        this.ping_elem.innerText = "?";
+        this.pong_elem.innerText = "?";
+
+        this.log = new Log(logElementId);
+    }
+
+    Manager.prototype.start = function(address) {
+        this.log.write("Connecting to " + address + "... ", true);
+
+        if(!('WebSocket' in window)) {
+            this.log.write("\nWebSockets are not supported on this device!");
+            return
+        }
+
+        this.socket = new ReconnectingWebSocket(address);
+        this.socket.addEventListener('open', function (event) {
+            this.log.write("connected!")
+            this.log.write("Attempting to possess the robot...")
+            this.sendMustArrive("possess", {}, true);
+        }.bind(this));
+
+        this.socket.addEventListener('error', function(event) {
+            this.log.write("Connection FAILED!")
+        }.bind(this));
+
+        this.socket.addEventListener('message', this.onMessage.bind(this));
+
+        this.mustArriveNext = Date.now() + this.MUST_ARRIVE_TIMER_FULL;
+        this.pingCheckNext = Date.now() + this.PING_CHECK_INTERVAL;
+        requestAnimationFrame(this.update.bind(this));
+    }
+
+    Manager.prototype.update = function() {
+        let now = Date.now();
+
+//        if(this.socket.readyState === WebSocket.OPEN) {
+//            var data = []
+//            for(var i = 0; i < this.joysticks.length; ++i) {
+//                data.push({
+//                    "x": this.joysticks[i].x,
+//                    "y": this.joysticks[i].y,
+//                })
+//            }
+//            this.socket.send(JSON.stringify({ "c": "joy", "data": data }))
+//        }
+        this.ping_elem.innerText = this.ping;
+        this.pong_elem.innerText = this.pong;
+        if ( this.ping - this.pong >= 2 ) {
+            this.pong_elem.style.color = "red";
+        } else {
+            this.pong_elem.style.color = "initial";
+        }
+
+        if(this.mustArriveNext <= now) {
+            for (let id in this.mustArriveCommands) {
+                if (this.mustArriveCommands.hasOwnProperty(id)) {
+                    let info = this.mustArriveCommands[id];
+                    this.socket.send(info.payload);
+                    if(info.attempts !== null) {
+                        if(++info.attempts >= this.MUST_ARRIVE_RETRIES) {
+                            delete this.mustArriveCommands[id];
+                        }
+                    }
+                }
+            }
+            this.mustArriveNext = now + this.MUST_ARRIVE_TIMER_FULL;
+        }
+        if (this.pingCheckNext <= now) {
+            if (this.ping - this.pong > this.PING_MAX_LOST) {
+                this.log.write("Ping timeout");
+                this.log.write("Retrying to possess the robot...");
+                this.ping = 0;
+                this.pong = 0;
+                this.sendMustArrive("possess", {}, true);
+            }
+            this.socket.send(JSON.stringify({ "c": "ping", "id": ++this.ping }));
+            this.pingCheckNext = now + this.PING_CHECK_INTERVAL;
+        }
+
+        requestAnimationFrame(this.update.bind(this))
+    }
+
+    Manager.prototype.onMessage = function(event) {
+        var data = JSON.parse(event.data);
+        if("f" in data) {
+            delete this.mustArriveCommands[data["f"]];
+            return;
+        } else if("e" in data) {
+            this.socket.send(JSON.stringify({"c": data["c"], "e": data["e"]}));
+            if(data["e"] <= this.mustArriveIdIn) {
+                return;
+            } else {
+                this.mustArriveIdIn = data["e"];
+            }
+        }
+
+        switch(data["c"]) {
+        case "pong":
+            this.handle_pong(data["id"])
+            break;
+        case "log":
+            this.log.write(data["msg"]);
+            break;
+        }
+    }
+
+    Manager.prototype.sendMustArrive = function(command, data, unlimitedAttempts) {
+        var id = ++this.mustArriveIdOut;
+        data["c"] = command;
+        data["f"] = id;
+
+        let payload = JSON.stringify(data);
+        this.mustArriveCommands[id] = { "payload": payload, "attempts": (unlimitedAttempts !== true) ? 0 : null };
+        this.socket.send(payload);
+    }
+
+    Manager.prototype.handle_pong = function(id) {
+        this.pong = Math.max(id, this.pong);
+    }
+
+    window.addEventListener("load", function(){
+        var man = new Manager("log");
+
+        var brightness = 0;
+        let range = document.getElementById("brightness-slider");
+        let info = document.getElementById("brightness-info");
+
+        info.innerText = range.value;
+
+        range.addEventListener('input', function () {
+            brightness = parseInt(this.value);
+            info.innerText = brightness;
+
+            let data = {"brightness": brightness}
+            man.socket.send(JSON.stringify({ "c": "brightness", "data": data }));
+        });
+
+        man.start("ws://localhost:9000");
+    });
+
+  </script>
+
+    <script type="text/javascript">
+//
+//        var log;
+//        var socket;
+//        var mustArriveIdOut = 0;
+//        var mustArriveIdIn = 0;
+//        var mustArriveCommands = {};
+//
+//        function sendMustArrive(command, data, unlimitedAttempts) {
+//            var id = ++mustArriveIdOut;
+//            data["c"] = command;
+//            data["f"] = id;
+//
+//            var payload = JSON.stringify(data);
+//            mustArriveCommands[id] = { "payload": payload, "attempts": (unlimitedAttempts !== true) ? 0 : null };
+//            this.socket.send(payload);
+//        }
+//
+//        window.addEventListener("load", function () {
+//            log = new Log("log");
+//            socket = new ReconnectingWebSocket("ws://localhost:9000");
+//            log.write("Connecting to ws://localhost:9000... ", true);
+//
+//            if (!('WebSocket' in window)) {
+//                log.write("\nWebSockets are not supported on this device!");
+//                return;
+//            }
+//
+//            socket.addEventListener('open', function (event) {
+//                log.write("connected!")
+//                log.write("Attempting to possess the robot...")
+//                sendMustArrive("possess", {}, true);
+//            });
+//
+//            socket.addEventListener('error', function (event) {
+//                log.write("Connection FAILED!")
+//            });
+//
+//            socket.addEventListener('message', onMessage);
+//        });
+//
+//        function Log(elementId) {
+//            this.elem = document.getElementById(elementId);
+//            this.open = false;
+//            this.isTouched = false;
+//
+//            this.elem.addEventListener("click", this.onClick);
+//
+//            this.elem.addEventListener("touchstart", function () {
+//                this.isTouched = true;
+//            });
+//            this.elem.addEventListener("touchend", function () {
+//                this.isTouched = false;
+//            });
+//
+//            this.scrollToBottom();
+//        }
+//
+//        Log.prototype.onClick = function () {
+//            this.open = !this.open;
+//            if (this.open) {
+//                this.elem.classList.replace("log-short", "log-full")
+//            } else {
+//                this.elem.classList.replace("log-full", "log-short")
+//            }
+//            this.scrollToBottom();
+//        }
+//
+//        Log.prototype.scrollToBottom = function () {
+//            this.elem.scrollTop = this.elem.scrollHeight;
+//        }
+//
+//        Log.prototype.clear = function () {
+//            this.elem.textContent = "";
+//        }
+//
+//        Log.prototype.write = function (msg, noNewLine) {
+//            if (noNewLine !== true && !msg.endsWith("\n")) {
+//                msg += "\n";
+//            }
+//            this.elem.textContent += msg;
+//            if (!this.isTouched) {
+//                this.scrollToBottom();
+//            }
+//        }
+//
+//        function onMessage(event) {
+//            let data = JSON.parse(event.data);
+//            if ("f" in data) {
+//                delete mustArriveCommands[data["f"]];
+//                return;
+//            } else if ("e" in data) {
+//                log.write("Want to send: " + JSON.stringify({ "c": data["c"], "e": data["e"] }));
+//                socket.send(JSON.stringify({ "c": data["c"], "e": data["e"] }));
+//                if (data["e"] <= this.mustArriveIdIn) {
+//                    return;
+//                } else {
+//                    this.mustArriveIdIn = data["e"];
+//                }
+//            }
+//            switch (data["c"]) {
+//                case "pong":
+//                    break;
+//                case "log":
+//                    log.write(data["msg"]);
+//                    break;
+//            }
+//        }
+    </script>
+</body>
+
+</html>
