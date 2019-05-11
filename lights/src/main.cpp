@@ -12,6 +12,8 @@
 #include <iostream>
 #include <memory>
 
+#include <sys/time.h>
+
 const char OWNER[] = "vstill";
 const char NAME[] = "lights";
 
@@ -34,9 +36,14 @@ extern "C" void app_main() {
         }
         else if (command == "ping") {
             int rcv = pkt->getInt( "id" );
-            std::cout << "ping " << rcv << std::endl;
+            int64_t time = pkt->getInt( "time" );
+            std::cout << "ping " << rcv << ", time is " << time << std::endl;
+            struct timeval now = { .tv_sec = time_t( time / 1000 ), .tv_usec = time_t(time % 1000) * 1000 };
+            settimeofday( &now, nullptr );
+
             rbjson::Object data;
             data.set( "id", new rbjson::Number( rcv ) );
+            data.set( "time", new rbjson::Number( time ) );
             prot.send( "pong", &data );
         }
     });
@@ -50,9 +57,9 @@ extern "C" void app_main() {
     while( true ) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         if ( prot.is_possessed() ) {
-			rbjson::Object data;
-			data.set( "status", "test msg" );
-			prot.send( "status", &data );
+            rbjson::Object data;
+            data.set( "status", "test msg" );
+            prot.send( "status", &data );
         }
     }
 }

@@ -116,7 +116,8 @@
     <div id="log" class="log-short"></div>
 
     <div id="content">
-        ping: <span id="ping-id"></span>, pong: <span id="pong-id"></span>, <span id="status">...</span>
+        ping: <span id="ping-id"></span>, pong: <span id="pong-id"></span>, <span id="roundtrip">...</span>
+        <div id="status">...</div>
         <div id="brightness">
             <p><b>Brightness</b></p>
             <div class="w3-center">
@@ -192,6 +193,7 @@
         this.ping = 0;
         this.pong = 0;
         this.status = document.getElementById("status");
+        this.roundtrip = document.getElementById("roundtrip");
         this.ping_elem = document.getElementById("ping-id");
         this.pong_elem = document.getElementById("pong-id");
         this.ping_elem.innerText = "?";
@@ -243,8 +245,11 @@
         this.pong_elem.innerText = this.pong;
         if ( this.ping - this.pong >= 2 ) {
             this.pong_elem.style.color = "red";
+            this.roundtrip.style.color = "red";
+            this.roundtrip.innerText = "> 1 s";
         } else {
             this.pong_elem.style.color = "initial";
+            this.roundtrip.style.color = "initial";
         }
 
         if(this.mustArriveNext <= now) {
@@ -269,7 +274,7 @@
                 this.pong = 0;
                 this.sendMustArrive("possess", {}, true);
             }
-            this.socket.send(JSON.stringify({ "c": "ping", "id": ++this.ping }));
+            this.socket.send(JSON.stringify({ "c": "ping", "id": ++this.ping, "time": Date.now() }));
             this.pingCheckNext = now + this.PING_CHECK_INTERVAL;
         }
 
@@ -292,11 +297,11 @@
 
         switch(data["c"]) {
         case "pong":
-            this.handle_pong(data["id"])
+            this.handle_pong(data["id"], data["time"])
             break;
-		case "status":
-			this.handle_status(data["status"])
-			break;
+        case "status":
+            this.handle_status(data["status"])
+            break;
         case "log":
             this.log.write(data["msg"]);
             break;
@@ -313,13 +318,15 @@
         this.socket.send(payload);
     }
 
-    Manager.prototype.handle_pong = function(id) {
-        this.pong = Math.max(id, this.pong);
+    Manager.prototype.handle_pong = function(id, time) {
+        this.pong = id;
+        let diff = Date.now() - time;
+        this.roundtrip.innerText = (diff < 100 ? " " + String(diff) : String(diff)) + " ms";
     }
 
-	Manager.prototype.handle_status = function(status) {
-		this.status.innerText = status;
-	}
+    Manager.prototype.handle_status = function(status) {
+        this.status.innerText = status;
+    }
 
     window.addEventListener("load", function(){
         var man = new Manager("log");
