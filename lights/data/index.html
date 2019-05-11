@@ -207,6 +207,7 @@
         this.MUST_ARRIVE_RETRIES = 15;
         this.PING_CHECK_INTERVAL = 500;
         this.PING_MAX_LOST = 10;
+        this.UPDATE_INTERVAL = this.MUST_ARRIVE_TIMER_FULL;
         this.ping = 0;
         this.pong = 0;
         this.status = document.getElementById("status");
@@ -215,6 +216,8 @@
         this.pong_elem = document.getElementById("pong-id");
         this.ping_elem.innerText = "?";
         this.pong_elem.innerText = "?";
+        this.brightness = 0;
+        this.brightness_changed = false;
 
         this.log = new Log(logElementId);
     }
@@ -242,22 +245,20 @@
 
         this.mustArriveNext = Date.now() + this.MUST_ARRIVE_TIMER_FULL;
         this.pingCheckNext = Date.now() + this.PING_CHECK_INTERVAL;
-        requestAnimationFrame(this.update.bind(this));
+        setTimeout(this.update.bind(this), this.UPDATE_INTERVAL);
     }
 
     Manager.prototype.update = function() {
         let now = Date.now();
 
-//        if(this.socket.readyState === WebSocket.OPEN) {
-//            var data = []
-//            for(var i = 0; i < this.joysticks.length; ++i) {
-//                data.push({
-//                    "x": this.joysticks[i].x,
-//                    "y": this.joysticks[i].y,
-//                })
-//            }
-//            this.socket.send(JSON.stringify({ "c": "joy", "data": data }))
-//        }
+        if( this.socket.readyState === WebSocket.OPEN ) {
+            if ( this.brightness_changed ) {
+                this.brightness_changed = false;
+                let data = {"brightness": this.brightness}
+                this.socket.send( JSON.stringify({ "c": "brightness", "data": data } ) );
+            }
+        }
+
         this.ping_elem.innerHTML = padLeft( this.ping, 3 );
         this.pong_elem.innerHTML = padLeft( this.pong, 3 );
         if ( this.ping - this.pong >= 2 ) {
@@ -295,7 +296,7 @@
             this.pingCheckNext = now + this.PING_CHECK_INTERVAL;
         }
 
-        requestAnimationFrame(this.update.bind(this))
+        setTimeout(this.update.bind(this), this.UPDATE_INTERVAL);
     }
 
     Manager.prototype.onMessage = function(event) {
@@ -348,18 +349,18 @@
     window.addEventListener("load", function(){
         var man = new Manager("log");
 
-        var brightness = 0;
         let range = document.getElementById("brightness-slider");
         let info = document.getElementById("brightness-info");
 
         info.innerText = range.value;
 
         range.addEventListener('input', function () {
-            brightness = parseInt(this.value);
-            info.innerText = brightness;
-
-            let data = {"brightness": brightness}
-            man.socket.send(JSON.stringify({ "c": "brightness", "data": data }));
+            let brightness = parseInt(this.value);
+            if ( brightness != man.brightness ) {
+                man.brightness = brightness;
+                man.brightness_changed = true;
+                info.innerText = brightness;
+            }
         });
 
         man.start("ws://localhost:9000");
