@@ -2,3 +2,11 @@ sdkconfig*
 build*
 _build*
 config.h
+
+.pio
+.pioenvs
+.piolibdeps
+.vscode
+
+wifi_config.hpp
+.last_uploadfs_sha1
