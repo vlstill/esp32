@@ -109,15 +109,23 @@
             top: 0;
             z-index: 1000;
         }
+
+        .pre {
+            font-family: monospace;
+            background-color: #cccccc;
+            padding: 3px;
+        }
     </style>
 </head>
 
 <body id="body">
     <div id="log" class="log-short"></div>
 
-    <div id="content">
+    <div class="pre">
         ping: <span id="ping-id"></span>, pong: <span id="pong-id"></span>, <span id="roundtrip">...</span>
         <div id="status">...</div>
+    </div>
+    <div id="content">
         <div id="brightness">
             <p><b>Brightness</b></p>
             <div class="w3-center">
@@ -132,6 +140,15 @@
 
   <script type="text/javascript">
     'use strict';
+
+    function padLeft(str, num) {
+        if (typeof str != "string")
+            str = String(str);
+        if ( str.length < num ) {
+            return "&nbsp;".repeat( num - str.length ) + str;
+        }
+        return str;
+    }
 
     function Log(elementId) {
         this.el = document.getElementById(elementId);
@@ -241,8 +258,8 @@
 //            }
 //            this.socket.send(JSON.stringify({ "c": "joy", "data": data }))
 //        }
-        this.ping_elem.innerText = this.ping;
-        this.pong_elem.innerText = this.pong;
+        this.ping_elem.innerHTML = padLeft( this.ping, 3 );
+        this.pong_elem.innerHTML = padLeft( this.pong, 3 );
         if ( this.ping - this.pong >= 2 ) {
             this.pong_elem.style.color = "red";
             this.roundtrip.style.color = "red";
@@ -321,7 +338,7 @@
     Manager.prototype.handle_pong = function(id, time) {
         this.pong = id;
         let diff = Date.now() - time;
-        this.roundtrip.innerText = (diff < 100 ? " " + String(diff) : String(diff)) + " ms";
+        this.roundtrip.innerHTML = padLeft(String(diff), 3) + " ms";
     }
 
     Manager.prototype.handle_status = function(status) {
