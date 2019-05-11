@@ -30,7 +30,7 @@ extern "C" void app_main() {
     // Initialize the communication protocol
     rb::Protocol prot(OWNER, NAME, "Compiled at " __DATE__ " " __TIME__, [&](const std::string& command, rbjson::Object *pkt) {
         if(command == "brightness") {
-            int value = pkt->getObject( "data" )->getInt( "brightness" );
+            int value = pkt->getInt( "brightness" );
             std::cout << "Changing brightness to " << value << std::endl;
             prot.send_log( "ack brightness %d\n", value );
         }

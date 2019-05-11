@@ -254,8 +254,7 @@
         if( this.socket.readyState === WebSocket.OPEN ) {
             if ( this.brightness_changed ) {
                 this.brightness_changed = false;
-                let data = {"brightness": this.brightness}
-                this.socket.send( JSON.stringify({ "c": "brightness", "data": data } ) );
+                this.socket.send( JSON.stringify({ "c": "brightness", "brightness": this.brightness } ) );
             }
         }
 
