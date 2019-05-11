@@ -19,17 +19,10 @@
 
 #if __has_include("wifi_config.hpp")
 #include "wifi_config.hpp"
+#else
+#error wifi not set, please provide WIFI_NAME & WIFI_PASSWORD in "wifi_config.hpp"
 #endif
 
-#ifndef WIFI_NAME
-#define WIFI_NAME "xxx"
-#define WIFI_PASSWORD "xxx"
-#endif
-
-#ifndef AP_WIFI_NAME
-#define AP_WIFI_NAME "Module-wifi"
-#define AP_WIFI_PASSWORD "paradise"
-#endif
 
 extern "C" void app_main() {
     rb::WiFi::connect(WIFI_NAME, WIFI_PASSWORD);
