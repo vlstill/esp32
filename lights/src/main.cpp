@@ -9,13 +9,11 @@
 
 #include "RBControl_wifi.hpp"
 
-#include "pin.hpp"
-
 #include <iostream>
 #include <memory>
 
-#define OWNER "vstill"
-#define NAME "test"
+const char OWNER[] = "vstill";
+const char NAME[] = "lights";
 
 #if __has_include("wifi_config.hpp")
 #include "wifi_config.hpp"
@@ -23,10 +21,8 @@
 #error wifi not set, please provide WIFI_NAME & WIFI_PASSWORD in "wifi_config.hpp"
 #endif
 
-
 extern "C" void app_main() {
     rb::WiFi::connect(WIFI_NAME, WIFI_PASSWORD);
-//    rb::WiFi::startAp(AP_WIFI_NAME, AP_WIFI_PASSWORD);
     rb_web_start(80);   // Start web server with control page (see data/index.html)
 
     // Initialize the communication protocol
