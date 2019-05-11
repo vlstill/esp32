@@ -115,13 +115,17 @@
             background-color: #cccccc;
             padding: 3px;
         }
+
+        .err {
+            background-color: #ff9999;
+        }
     </style>
 </head>
 
 <body id="body">
     <div id="log" class="log-short"></div>
 
-    <div class="pre">
+    <div class="pre" id="status_lines">
         ping: <span id="ping-id"></span>, pong: <span id="pong-id"></span>, <span id="roundtrip">...</span>
         <div id="status">...</div>
     </div>
@@ -210,6 +214,8 @@
         this.UPDATE_INTERVAL = this.MUST_ARRIVE_TIMER_FULL;
         this.ping = 0;
         this.pong = 0;
+        this.pinging = false;
+        this.status_lines = document.getElementById("status_lines");
         this.status = document.getElementById("status");
         this.roundtrip = document.getElementById("roundtrip");
         this.ping_elem = document.getElementById("ping-id");
@@ -260,13 +266,12 @@
 
         this.ping_elem.innerHTML = padLeft( this.ping, 3 );
         this.pong_elem.innerHTML = padLeft( this.pong, 3 );
-        if ( this.ping - this.pong >= 2 ) {
-            this.pong_elem.style.color = "red";
-            this.roundtrip.style.color = "red";
+        if ( !this.pinging || this.ping - this.pong >= 2 ) {
+            this.pinging = false;
+            this.status_lines.classList.add( "err" );
             this.roundtrip.innerText = "> 1 s";
         } else {
-            this.pong_elem.style.color = "initial";
-            this.roundtrip.style.color = "initial";
+            this.status_lines.classList.remove( "err" );
         }
 
         if(this.mustArriveNext <= now) {
@@ -289,6 +294,7 @@
                 this.log.write("Retrying to possess the robot...");
                 this.ping = 0;
                 this.pong = 0;
+                this.pinging = false;
                 this.sendMustArrive("possess", {}, true);
             }
             this.socket.send(JSON.stringify({ "c": "ping", "id": ++this.ping, "time": Date.now() }));
@@ -337,6 +343,7 @@
 
     Manager.prototype.handle_pong = function(id, time) {
         this.pong = id;
+        this.pinging = true;
         let diff = Date.now() - time;
         this.roundtrip.innerHTML = padLeft(String(diff), 3) + " ms";
     }
