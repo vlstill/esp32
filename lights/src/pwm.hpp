@@ -30,13 +30,18 @@ constexpr inline ledc_timer_bit_t operator""_tbits( unsigned long long pin ) {
     return ledc_timer_bit_t( pin );
 }
 
-template< gpio_num_t pin, ledc_timer_t timer, ledc_channel_t channel, ledc_timer_bit_t bits >
+static constexpr bool inverted_logic = true;
+
+template< gpio_num_t pin,
+          ledc_timer_t timer, ledc_channel_t channel, ledc_timer_bit_t bits,
+          bool inverted = false >
 struct PWM : OutPin< pin >
 {
     static constexpr auto PIN_NUM = pin;
     static constexpr ledc_timer_t TIMER = timer;
     static constexpr ledc_channel_t CHANNEL = channel;
     static constexpr ledc_timer_bit_t BITS = bits;
+    static constexpr uint32_t MAX_DUTY = (uint64_t( 1 ) << BITS);
 
     template <typename T>
     void set_duty_perc( T dutyPerc )
@@ -45,12 +50,13 @@ struct PWM : OutPin< pin >
                        "type used in set_duty_perc must be arithmetic" );
         assert( 0 <= dutyPerc );
         assert( dutyPerc <= 100 );
-        uint32_t duty = (1UL << BITS) * dutyPerc / 100;
+        uint32_t duty = MAX_DUTY * dutyPerc / 100;
         set_duty( duty );
     }
 
     void set_duty( uint32_t duty ) {
-        ledc_set_duty_and_update( LEDC_HIGH_SPEED_MODE, CHANNEL, duty, 0 );
+        ledc_set_duty_and_update( LEDC_HIGH_SPEED_MODE, CHANNEL,
+                                  inverted ? MAX_DUTY - duty : duty, 0 );
     }
 
     PWM( FreqHz freq )

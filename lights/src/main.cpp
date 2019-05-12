@@ -33,7 +33,7 @@ extern "C" void app_main() {
     ledc_fade_func_install( 0 );
     bool led_on = false;
     OutPin< 33_pin > led_pin;
-    PWM< 25_pin, 0_timer, 0_channel, 16_tbits > brightness_pwm( 100_Hz );
+    PWM< 25_pin, 0_timer, 0_channel, 16_tbits, inverted_logic > brightness_pwm( 100_Hz );
     brightness_pwm.set_duty_perc( 0 );
 
     // Initialize the communication protocol
@@ -42,7 +42,7 @@ extern "C" void app_main() {
             int value = pkt->getInt( "brightness" );
             std::cout << "Changing brightness to " << value << std::endl;
             prot.send_log( "ack brightness %d\n", value );
-            brightness_pwm.set_duty_perc( 100 - value );
+            brightness_pwm.set_duty_perc( value );
         }
         else if (command == "ping") {
             int rcv = pkt->getInt( "id" );
