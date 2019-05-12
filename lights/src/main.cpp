@@ -14,6 +14,9 @@
 
 #include <sys/time.h>
 
+#include "pin.hpp"
+#include "pwm.hpp"
+
 const char OWNER[] = "vstill";
 const char NAME[] = "lights";
 
@@ -27,12 +30,19 @@ extern "C" void app_main() {
     rb::WiFi::connect(WIFI_NAME, WIFI_PASSWORD);
     rb_web_start(80);   // Start web server with control page (see data/index.html)
 
+    ledc_fade_func_install( 0 );
+    bool led_on = false;
+    OutPin< 33_pin > led_pin;
+    PWM< 25_pin, 0_timer, 0_channel, 16_tbits > brightness_pwm( 100_Hz );
+    brightness_pwm.set_duty_perc( 0 );
+
     // Initialize the communication protocol
     rb::Protocol prot(OWNER, NAME, "Compiled at " __DATE__ " " __TIME__, [&](const std::string& command, rbjson::Object *pkt) {
         if(command == "brightness") {
             int value = pkt->getInt( "brightness" );
             std::cout << "Changing brightness to " << value << std::endl;
             prot.send_log( "ack brightness %d\n", value );
+            brightness_pwm.set_duty_perc( 100 - value );
         }
         else if (command == "ping") {
             int rcv = pkt->getInt( "id" );
@@ -45,6 +55,8 @@ extern "C" void app_main() {
             data.set( "id", new rbjson::Number( rcv ) );
             data.set( "time", new rbjson::Number( time ) );
             prot.send( "pong", &data );
+
+            led_pin.set( led_on = !led_on );
         }
     });
 
