@@ -39,7 +39,7 @@ extern "C" void app_main() {
     ledc_fade_func_install( 0 );
     bool led_on = false;
     OutPin< 33_pin > led_pin;
-    PWM< 25_pin, 0_timer, 0_channel, 16_tbits, inverted_logic > brightness_pwm( 100_Hz );
+    PWM< 25_pin, 0_timer, 0_channel, 12_tbits, inverted_logic > brightness_pwm( 10_kHz );
     brightness_pwm.set_duty_perc( 0 );
     std::optional< unsigned > brightness;
 
