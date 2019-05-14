@@ -308,6 +308,9 @@
         var data = JSON.parse(event.data);
         if("f" in data) {
             delete this.mustArriveCommands[data["f"]];
+            if (data["c"] === "possess") {
+                this.handle_possessed();
+            }
             return;
         } else if("e" in data) {
             this.socket.send(JSON.stringify({"c": data["c"], "e": data["e"]}));
@@ -327,6 +330,12 @@
             break;
         case "log":
             this.log.write(data["msg"]);
+            break;
+        case "params":
+            this.handle_params(data);
+            break;
+        case "get_params":
+            this.brightness_changed = true;
             break;
         }
     }
@@ -350,6 +359,20 @@
 
     Manager.prototype.handle_status = function(status) {
         this.status.innerText = status;
+    }
+
+    Manager.prototype.handle_possessed = function() {
+        this.socket.send(JSON.stringify({"c": "get_params"}));
+    }
+
+    Manager.prototype.handle_params = function(data) {
+        if ("brightness" in data) {
+            this.brightness = parseInt(data["brightness"]);
+            let range = document.getElementById("brightness-slider");
+            let info = document.getElementById("brightness-info");
+            info.innerText = this.brightness;
+            range.value = this.brightness;
+        }
     }
 
     window.addEventListener("load", function(){

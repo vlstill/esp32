@@ -11,11 +11,17 @@
 
 #include <iostream>
 #include <memory>
+#include <experimental/optional>
 
 #include <sys/time.h>
 
 #include "pin.hpp"
 #include "pwm.hpp"
+
+namespace std {
+    using std::experimental::optional;
+    using std::experimental::nullopt;
+}
 
 const char OWNER[] = "vstill";
 const char NAME[] = "lights";
@@ -35,14 +41,15 @@ extern "C" void app_main() {
     OutPin< 33_pin > led_pin;
     PWM< 25_pin, 0_timer, 0_channel, 16_tbits, inverted_logic > brightness_pwm( 100_Hz );
     brightness_pwm.set_duty_perc( 0 );
+    std::optional< unsigned > brightness;
 
     // Initialize the communication protocol
     rb::Protocol prot(OWNER, NAME, "Compiled at " __DATE__ " " __TIME__, [&](const std::string& command, rbjson::Object *pkt) {
         if(command == "brightness") {
-            int value = pkt->getInt( "brightness" );
-            std::cout << "Changing brightness to " << value << std::endl;
-            prot.send_log( "ack brightness %d\n", value );
-            brightness_pwm.set_duty_perc( value );
+            brightness = pkt->getInt( "brightness" );
+            std::cout << "Changing brightness to " << *brightness << std::endl;
+            prot.send_log( "ack brightness %d\n", *brightness );
+            brightness_pwm.set_duty_perc( *brightness );
         }
         else if (command == "ping") {
             int rcv = pkt->getInt( "id" );
@@ -57,6 +64,16 @@ extern "C" void app_main() {
             prot.send( "pong", &data );
 
             led_pin.set( led_on = !led_on );
+        } else if (command == "get_params") {
+            rbjson::Object data;
+            if ( brightness ) {
+                data.set( "brightness", new rbjson::Number( *brightness ) );
+                std::cout << "get_params -> " << *brightness << "\n";
+                prot.send( "params", &data );
+            } else {
+                std::cout << "get_params -> get_params\n";
+                prot.send( "get_params", &data );
+            }
         }
     });
 
